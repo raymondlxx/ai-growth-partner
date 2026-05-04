@@ -1,0 +1,157 @@
+# IDE
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Temp files
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig
+
+# Environment / Secrets
+.env
+.env.local
+.env.*.local
+.env.production
+*.pem
+*.key
+secrets/
+credentials/
+
+# Dependencies
+node_modules/
+jspm_packages/
+.pnp
+.pnp.js
+yarn.lock
+package-lock.json
+
+# Java / Kotlin
+target/
+build/
+.gradle/
+*.class
+*.jar
+*.war
+*.ear
+*.logs
+*.classpath
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+
+# Spring Boot
+spring-boot-devtools.properties
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+.env
+.eggs/
+*.egg-info/
+dist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg
+
+# Go
+vendor/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Docker
+.dockerignore
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Build outputs
+dist/
+build/
+out/
+coverage/
+.nyc_output/
+
+# Test
+coverage/
+*.lcov
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfstate.log
+
+# Terraform provider plugins
+.terraform.lock.hcl
+
+# Editor directories
+vendor/
+plugins/
+data/
+
+# Unity
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+
+# Unreal Engine
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+
+# JetBrains Rider
+*.sln.iml
