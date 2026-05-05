@@ -2,7 +2,7 @@ package com.aigrowth.ai.controller;
 
 import com.aigrowth.ai.dto.ChatRequest;
 import com.aigrowth.ai.dto.ChatResponse;
-import com.aigrowth.ai.service.MockAiService;
+import com.aigrowth.ai.service.AiServiceFactory;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,10 +12,10 @@ import java.util.*;
 @RequestMapping("/api/ai")
 public class AiChatController {
 
-    private final MockAiService mockAiService;
+    private final AiServiceFactory aiServiceFactory;
 
-    public AiChatController(MockAiService mockAiService) {
-        this.mockAiService = mockAiService;
+    public AiChatController(AiServiceFactory aiServiceFactory) {
+        this.aiServiceFactory = aiServiceFactory;
     }
 
     @PostMapping("/chat")
@@ -30,7 +30,7 @@ public class AiChatController {
             }
         }
 
-        Map<String, Object> result = mockAiService.chat(request.getMessage(), history);
+        Map<String, Object> result = aiServiceFactory.chat(request.getMessage(), history);
 
         ChatResponse response = new ChatResponse(
             (String) result.get("response"),
@@ -40,5 +40,13 @@ public class AiChatController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/status")
+    public ResponseEntity<Map<String, Object>> status() {
+        Map<String, Object> status = new HashMap<>();
+        status.put("provider", aiServiceFactory.getCurrentProvider());
+        status.put("minimaxConfigured", aiServiceFactory.isMiniMaxConfigured());
+        return ResponseEntity.ok(status);
     }
 }

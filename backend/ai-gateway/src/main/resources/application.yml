@@ -6,15 +6,24 @@ spring:
     name: ai-gateway
 
 ai:
-  provider: mock  # Options: mock, openai, anthropic
+  provider: minimax  # Options: mock, openai, anthropic, minimax
+
   openai:
-    api-key: ${OPENAI_API_KEY:sk-placeholder}
+    api-key: ${OPENAI_API_KEY:your-openai-key-here}
     base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
     model: ${OPENAI_MODEL:gpt-4}
+
   anthropic:
-    api-key: ${ANTHROPIC_API_KEY:sk-placeholder}
+    api-key: ${ANTHROPIC_API_KEY:your-anthropic-key-here}
     base-url: ${ANTHROPIC_BASE_URL:https://api.anthropic.com/v1}
     model: ${ANTHROPIC_MODEL:claude-3-sonnet-20240229}
+
+  minimax:
+    api-key: ${MINIMAX_API_KEY:}
+    group-id: ${MINIMAX_GROUP_ID:}
+    base-url: ${MINIMAX_BASE_URL:https://api.minimax.chat/v1}
+    model: ${MINIMAX_MODEL:minimax-01-16k}
+
   mentor:
     system-prompt: |
       You are an AI mentor companion for personal growth and career development.

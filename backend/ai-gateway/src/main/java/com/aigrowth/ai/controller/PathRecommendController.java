@@ -2,7 +2,7 @@ package com.aigrowth.ai.controller;
 
 import com.aigrowth.ai.dto.PathRecommendRequest;
 import com.aigrowth.ai.dto.PathRecommendResponse;
-import com.aigrowth.ai.service.MockAiService;
+import com.aigrowth.ai.service.AiServiceFactory;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,15 +12,15 @@ import java.util.Map;
 @RequestMapping("/api/ai")
 public class PathRecommendController {
 
-    private final MockAiService mockAiService;
+    private final AiServiceFactory aiServiceFactory;
 
-    public PathRecommendController(MockAiService mockAiService) {
-        this.mockAiService = mockAiService;
+    public PathRecommendController(AiServiceFactory aiServiceFactory) {
+        this.aiServiceFactory = aiServiceFactory;
     }
 
     @PostMapping("/path-recommend")
     public ResponseEntity<PathRecommendResponse> recommendPath(@Valid @RequestBody PathRecommendRequest request) {
-        Map<String, Object> result = mockAiService.getPathRecommendation(
+        Map<String, Object> result = aiServiceFactory.getPathRecommendation(
             request.getUserContext(),
             request.getGoalArea(),
             request.getConstraints()

@@ -35,18 +35,15 @@ temp/
 .env.production
 *.pem
 *.key
-secrets/
-credentials/
 
 # Dependencies
 node_modules/
-jspm_packages/
 .pnp
 .pnp.js
 yarn.lock
 package-lock.json
 
-# Java / Kotlin
+# Java
 target/
 build/
 .gradle/
@@ -61,6 +58,7 @@ build/
 .mvn/
 mvnw
 mvnw.cmd
+settings-central.xml
 
 # Spring Boot
 spring-boot-devtools.properties
@@ -74,27 +72,19 @@ __pycache__/
 venv/
 env/
 .venv/
-.env
 .eggs/
 *.egg-info/
 dist/
 develop-eggs/
 .installed.cfg
-!frontend/src/lib/
 lib/
 lib64/
 parts/
 sdist/
 var/
-*.egg
 
 # Go
 vendor/
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
 
 # Docker
 .dockerignore
@@ -123,7 +113,6 @@ coverage/
 
 # Next.js
 .next/
-.next/
 
 # Test
 coverage/
@@ -134,8 +123,6 @@ coverage/
 *.tfstate
 *.tfstate.backup
 *.tfstate.log
-
-# Terraform provider plugins
 .terraform.lock.hcl
 
 # Editor directories
@@ -151,12 +138,6 @@ data/
 /[Bb]uilds/
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
-
-# Unreal Engine
-Binaries/
-Intermediate/
-Saved/
-DerivedDataCache/
 
 # JetBrains Rider
 *.sln.iml
