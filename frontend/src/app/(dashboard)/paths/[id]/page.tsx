@@ -1,6 +1,6 @@
 'use client'
 
-import { SkillNodeComponent } from '@/components/paths/SkillNode'
+import { SkillNode } from '@/components/paths/SkillNode'
 import { apiGet } from '@/lib/api'
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
@@ -10,8 +10,8 @@ interface SkillNode {
   name: string
   description: string
   order: number
-  isCompleted: boolean
-  isUnlocked: boolean
+  status: 'completed' | 'available' | 'locked'
+  requiredXp: number
 }
 
 interface CareerPath {
@@ -53,7 +53,7 @@ export default function PathDetailPage() {
         {path.skillNodes
           .sort((a, b) => a.order - b.order)
           .map(node => (
-            <SkillNodeComponent key={node.id} node={node} pathId={pathId} />
+            <SkillNode key={node.id} node={node} />
           ))
         }
       </div>

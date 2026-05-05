@@ -1,12 +1,12 @@
 server:
-  port: 8082
+  port: 8083
 
 spring:
   application:
     name: content-service
   data:
     mongodb:
-      uri: mongodb://localhost:27017/content_service
+      uri: mongodb://aigrowth:aigrowth123@localhost:27017/content_service?authSource=admin
       database: content_service
 
 logging:

@@ -34,14 +34,14 @@ public class UserService {
         // Check if username already exists
         LambdaQueryWrapper<User> usernameQuery = new LambdaQueryWrapper<>();
         usernameQuery.eq(User::getUsername, request.getUsername());
-        if (userRepository.selectExists(usernameQuery)) {
+        if (userRepository.selectCount(usernameQuery) > 0) {
             throw BizException.conflict("Username already exists");
         }
 
         // Check if email already exists
         LambdaQueryWrapper<User> emailQuery = new LambdaQueryWrapper<>();
         emailQuery.eq(User::getEmail, request.getEmail());
-        if (userRepository.selectExists(emailQuery)) {
+        if (userRepository.selectCount(emailQuery) > 0) {
             throw BizException.conflict("Email already exists");
         }
 

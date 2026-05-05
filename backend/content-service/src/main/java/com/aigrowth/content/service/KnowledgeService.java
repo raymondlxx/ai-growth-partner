@@ -116,7 +116,7 @@ public class KnowledgeService {
 
         List<KnowledgeArticle> allArticles = repository.findAll();
 
-        double[] queryEmbedding = generateMockEmbedding(query);
+        List<Double> queryEmbedding = generateMockEmbedding(query);
 
         Map<KnowledgeArticle, Double> scoredArticles = new HashMap<>();
         for (KnowledgeArticle article : allArticles) {
@@ -131,19 +131,18 @@ public class KnowledgeService {
             .collect(Collectors.toList());
     }
 
-    private double calculateCosineSimilarity(double[] vec1, List<Double> vec2) {
-        if (vec1 == null || vec2 == null || vec2.isEmpty()) {
+    private double calculateCosineSimilarity(List<Double> vec1, List<Double> vec2) {
+        if (vec1 == null || vec2 == null || vec1.isEmpty() || vec2.isEmpty()) {
             return 0.0;
         }
-        double[] v2 = vec2.stream().mapToDouble(Double::doubleValue).toArray();
-
+        int len = Math.min(vec1.size(), vec2.size());
         double dotProduct = 0;
-        for (int i = 0; i < Math.min(vec1.length, v2.length); i++) {
-            dotProduct += vec1[i] * v2[i];
+        for (int i = 0; i < len; i++) {
+            dotProduct += vec1.get(i) * vec2.get(i);
         }
 
         double magnitude1 = calculateMagnitude(vec1);
-        double magnitude2 = calculateMagnitude(v2);
+        double magnitude2 = calculateMagnitude(vec2);
 
         if (magnitude1 == 0 || magnitude2 == 0) {
             return 0.0;
@@ -152,9 +151,9 @@ public class KnowledgeService {
         return dotProduct / (magnitude1 * magnitude2);
     }
 
-    private double calculateMagnitude(double[] vector) {
+    private double calculateMagnitude(List<Double> vector) {
         double sum = 0;
-        for (double v : vector) {
+        for (Double v : vector) {
             sum += v * v;
         }
         return Math.sqrt(sum);

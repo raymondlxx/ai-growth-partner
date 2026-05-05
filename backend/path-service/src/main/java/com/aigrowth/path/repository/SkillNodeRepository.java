@@ -7,5 +7,5 @@ import java.util.List;
 
 @Repository
 public interface SkillNodeRepository extends JpaRepository<SkillNode, Long> {
-    List<SkillNode> findByPathIdOrderByStageOrderAsc(Long pathId);
+    List<SkillNode> findByCareerPathIdOrderByStageOrderAsc(Long careerPathId);
 }

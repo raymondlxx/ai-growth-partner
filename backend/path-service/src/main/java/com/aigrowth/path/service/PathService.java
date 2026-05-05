@@ -51,11 +51,11 @@ public class PathService {
         CareerPath path = careerPathRepository.findById(pathId)
                 .orElseThrow(() -> new BusinessException(404, "Career path not found"));
         CareerPathDTO dto = toCareerPathDTO(path);
-        List<SkillNode> nodes = skillNodeRepository.findByPathIdOrderByStageOrderAsc(pathId);
+        List<SkillNode> nodes = skillNodeRepository.findByCareerPathIdOrderByStageOrderAsc(pathId);
         List<SkillNodeDTO> nodeDTOs = nodes.stream().map(node -> {
             SkillNodeDTO nodeDTO = toSkillNodeDTO(node);
             userSkillProgressRepository.findByUserIdAndSkillId(userId, node.getId())
-                    .ifExists(userProg -> nodeDTO.setUserCompleted(userProg.getCompleted()));
+                    .ifPresent(userProg -> nodeDTO.setUserCompleted(userProg.getCompleted()));
             return nodeDTO;
         }).collect(Collectors.toList());
         dto.setSkillNodes(nodeDTOs);
@@ -112,7 +112,7 @@ public class PathService {
         userSkill.setCompleted(true);
         userSkillProgressRepository.save(userSkill);
 
-        List<SkillNode> allNodes = skillNodeRepository.findByPathIdOrderByStageOrderAsc(pathId);
+        List<SkillNode> allNodes = skillNodeRepository.findByCareerPathIdOrderByStageOrderAsc(pathId);
         List<UserSkillProgress> userProgress = userSkillProgressRepository.findByUserIdAndPathId(userId, pathId);
         long completedCount = userProgress.stream().filter(UserSkillProgress::getCompleted).count();
         int percent = (int) ((completedCount * 100) / allNodes.size());
