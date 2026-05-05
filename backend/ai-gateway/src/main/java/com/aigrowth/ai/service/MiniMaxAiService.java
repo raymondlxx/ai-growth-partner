@@ -143,44 +143,59 @@ public class MiniMaxAiService {
     }
 
     private String parseMiniMaxResponse(String json) {
-        // MiniMax OpenAI-compatible response format:
-        // {"id":"...","choices":[{"message":{"role":"assistant","content":"..."}}]}
+        // MiniMax response format:
+        // {"id":"...","choices":[{"finish_reason":"stop","index":0,"message":{"content":"...","role":"assistant"}}]}
         try {
-            // Simple JSON parsing without external library
-            // Find "content":"..." inside choices[0].message
+            // Find the "message" object within choices
             int choicesIdx = json.indexOf("\"choices\"");
             if (choicesIdx == -1) throw new RuntimeException("No 'choices' in response: " + json);
 
-            int msgIdx = json.indexOf("\"message\"", choicesIdx);
-            if (msgIdx == -1) throw new RuntimeException("No 'message' in choices");
+            int msgKeyIdx = json.indexOf("\"message\"", choicesIdx);
+            if (msgKeyIdx == -1) throw new RuntimeException("No 'message' in choices: " + json);
 
-            int contentIdx = json.indexOf("\"content\"", msgIdx);
-            if (contentIdx == -1) throw new RuntimeException("No 'content' in message");
+            int msgBraceIdx = json.indexOf("{", msgKeyIdx);
+            if (msgBraceIdx == -1) throw new RuntimeException("No '{' after 'message': " + json);
 
-            // Find the value after "content":
+            // Find "content" key within the message object
+            int contentIdx = json.indexOf("\"content\"", msgBraceIdx);
+            if (contentIdx == -1) throw new RuntimeException("No 'content' in message: " + json);
+
             int colonIdx = json.indexOf(":", contentIdx);
             int startQuote = json.indexOf("\"", colonIdx + 1);
+            if (startQuote == -1) throw new RuntimeException("No opening quote for content value");
+
             int endQuote = startQuote + 1;
+            StringBuilder content = new StringBuilder();
             while (endQuote < json.length()) {
                 char c = json.charAt(endQuote);
                 if (c == '\\') {
-                    endQuote += 2; // skip escape
+                    char next = json.charAt(endQuote + 1);
+                    if (next == 'n') {
+                        content.append('\n');
+                    } else if (next == 't') {
+                        content.append('\t');
+                    } else if (next == '"') {
+                        content.append('"');
+                    } else if (next == '\\') {
+                        content.append('\\');
+                    } else {
+                        content.append(next);
+                    }
+                    endQuote += 2;
                     continue;
                 }
                 if (c == '"') break;
+                content.append(c);
                 endQuote++;
             }
 
-            String content = json.substring(startQuote + 1, endQuote);
-            // Unescape common sequences
-            content = content.replace("\\\"", "\"")
-                           .replace("\\n", "\n")
-                           .replace("\\\\", "\\");
-            return content;
+            return content.toString();
 
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Failed to parse MiniMax response: {}", e.getMessage());
-            throw new RuntimeException("Failed to parse MiniMax response: " + json, e);
+            throw new RuntimeException("Failed to parse MiniMax response", e);
         }
     }
 
@@ -207,6 +222,9 @@ public class MiniMaxAiService {
                     }
                 }
                 sb.append("]");
+            } else if (v instanceof Number) {
+                // Numbers (Integer, Double, etc.) must NOT be quoted
+                sb.append(String.valueOf(v));
             } else {
                 sb.append("\"").append(String.valueOf(v).replace("\\", "\\\\")
                     .replace("\"", "\\\"")
