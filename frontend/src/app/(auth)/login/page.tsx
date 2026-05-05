@@ -4,10 +4,10 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { apiPost } from '@/lib/api'
 
 const loginSchema = z.object({
   email: z.string().email('请输入有效的邮箱地址'),
@@ -18,6 +18,7 @@ type LoginForm = z.infer<typeof loginSchema>
 
 export default function LoginPage() {
   const router = useRouter()
+  const { login, isLoading } = useAuth()
   const {
     register,
     handleSubmit,
@@ -27,17 +28,11 @@ export default function LoginPage() {
   })
 
   const onSubmit = async (data: LoginForm) => {
-    try {
-      const res = await apiPost<{ token: string; userId: string }>('/auth/login', data)
-      if (res.data.code === 200 || res.data.code === 0) {
-        localStorage.setItem('token', res.data.data.token)
-        localStorage.setItem('userId', res.data.data.userId)
-        router.push('/profile')
-      } else {
-        alert(res.data.message || '登录失败')
-      }
-    } catch {
-      alert('网络错误，请稍后重试')
+    const result = await login(data)
+    if (result.success) {
+      router.push('/tasks')
+    } else {
+      alert(result.message)
     }
   }
 
@@ -74,8 +69,8 @@ export default function LoginPage() {
                 <p className="text-sm text-red-500">{errors.password.message}</p>
               )}
             </div>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? '登录中...' : '登录'}
+            <Button type="submit" className="w-full" disabled={isSubmitting || isLoading}>
+              {isSubmitting || isLoading ? '登录中...' : '登录'}
             </Button>
             <p className="text-center text-sm text-gray-500">
               还没有账号？{' '}

@@ -4,16 +4,8 @@ import { TaskList } from '@/components/tasks/TaskList'
 import { XPBar } from '@/components/tasks/XPBar'
 import { apiGet } from '@/lib/api'
 import { useEffect, useState } from 'react'
-
-interface Task {
-  id: number
-  title: string
-  description: string
-  category: string
-  xp: number
-  difficulty: 'EASY' | 'MEDIUM' | 'HARD'
-  isActive: boolean
-}
+import { useAuth } from '@/contexts/AuthContext'
+import type { Task } from '@/types'
 
 interface UserStats {
   level: number
@@ -24,19 +16,21 @@ interface UserStats {
 }
 
 export default function TasksPage() {
+  const { user } = useAuth()
   const [tasks, setTasks] = useState<Task[]>([])
   const [stats, setStats] = useState<UserStats | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
-    const userId = localStorage.getItem('userId') || ''
-    apiGet<Task[]>('/tasks').then(res => {
-      if (res.data.code === 200 || res.data.code === 0) setTasks(res.data.data || [])
+    apiGet<{ tasks: Task[] }>('/task/list').then(res => {
+      if (res.data.code === 200 || res.data.code === 0) setTasks(res.data.data?.tasks || [])
     }).catch(() => {})
-    apiGet<UserStats>(`/user/stats?userId=${userId}`).then(res => {
-      if (res.data.code === 200 || res.data.code === 0) setStats(res.data.data)
-    }).catch(() => {})
-  }, [refreshKey])
+    if (user?.id) {
+      apiGet<UserStats>(`/user/stats?userId=${user.id}`).then(res => {
+        if (res.data.code === 200 || res.data.code === 0) setStats(res.data.data)
+      }).catch(() => {})
+    }
+  }, [user, refreshKey])
 
   const handleComplete = () => {
     setRefreshKey(k => k + 1)

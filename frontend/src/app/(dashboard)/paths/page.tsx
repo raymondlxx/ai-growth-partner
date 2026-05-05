@@ -4,15 +4,7 @@ import { PathCard } from '@/components/paths/PathCard'
 import { apiGet } from '@/lib/api'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-
-interface SkillNode {
-  id: string
-  name: string
-  description: string
-  order: number
-  isCompleted: boolean
-  isUnlocked: boolean
-}
+import type { Path } from '@/types'
 
 interface CareerPath {
   id: string
@@ -21,16 +13,45 @@ interface CareerPath {
   category: string
   totalSkills: number
   completedSkills: number
-  skillNodes: SkillNode[]
+  skillNodes: {
+    id: string
+    name: string
+    description: string
+    order: number
+    isCompleted: boolean
+    isUnlocked: boolean
+  }[]
+}
+
+function mapToPath(careerPath: CareerPath): Path {
+  return {
+    id: careerPath.id,
+    name: careerPath.name,
+    description: careerPath.description,
+    icon: 'Route',
+    totalXp: careerPath.totalSkills * 100,
+    skills: careerPath.skillNodes.map(node => ({
+      id: node.id,
+      name: node.name,
+      description: node.description,
+      status: node.isCompleted ? 'completed' : node.isUnlocked ? 'available' : 'locked',
+      requiredXp: node.order * 50,
+    })),
+    progress: careerPath.totalSkills > 0 
+      ? Math.round((careerPath.completedSkills / careerPath.totalSkills) * 100) 
+      : 0,
+  }
 }
 
 export default function PathsPage() {
-  const [paths, setPaths] = useState<CareerPath[]>([])
+  const [paths, setPaths] = useState<Path[]>([])
   const router = useRouter()
 
   useEffect(() => {
     apiGet<CareerPath[]>('/paths').then(res => {
-      if (res.data.code === 200 || res.data.code === 0) setPaths(res.data.data || [])
+      if (res.data.code === 200 || res.data.code === 0) {
+        setPaths((res.data.data || []).map(mapToPath))
+      }
     }).catch(() => {})
   }, [])
 
@@ -46,7 +67,7 @@ export default function PathsPage() {
           <PathCard
             key={path.id}
             path={path}
-            onClick={() => router.push(`/paths/${path.id}`)}
+            onSelect={(id) => router.push(`/paths/${id}`)}
           />
         ))}
       </div>

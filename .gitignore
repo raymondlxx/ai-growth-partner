@@ -80,6 +80,7 @@ env/
 dist/
 develop-eggs/
 .installed.cfg
+!frontend/src/lib/
 lib/
 lib64/
 parts/
@@ -119,6 +120,10 @@ build/
 out/
 coverage/
 .nyc_output/
+
+# Next.js
+.next/
+.next/
 
 # Test
 coverage/

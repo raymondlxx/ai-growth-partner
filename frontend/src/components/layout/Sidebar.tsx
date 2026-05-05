@@ -18,32 +18,27 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  LogOut,
 } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
-
-interface SidebarProps {
-  user?: {
-    name: string
-    avatar?: string
-    level: number
-    xp: number
-  }
-}
+import { useAuth } from '@/contexts/AuthContext'
 
 const navItems = [
-  { href: '/', icon: Home, label: '首页' },
-  { href: '/profile', icon: User, label: '我的画像' },
   { href: '/tasks', icon: ListTodo, label: '技能任务' },
   { href: '/paths', icon: Route, label: '成长路径' },
   { href: '/knowledge', icon: BookOpen, label: '知识智库' },
   { href: '/mentor', icon: MessageCircle, label: 'AI导师' },
+  { href: '/profile', icon: User, label: '我的画像' },
 ]
 
-export function Sidebar({ user }: SidebarProps) {
+export function Sidebar() {
+  const { user, logout } = useAuth()
   const [collapsed, setCollapsed] = useState(false)
   const pathname = usePathname()
 
-  const xpProgress = user ? (user.xp % 100) : 0
+  const xp = user?.xp ?? 0
+  const level = user?.level ?? 1
+  const xpProgress = xp % 100
   const xpToNextLevel = 100
 
   return (
@@ -55,7 +50,7 @@ export function Sidebar({ user }: SidebarProps) {
     >
       {/* Logo */}
       <div className="flex h-14 items-center border-b px-4">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/tasks" className="flex items-center gap-2">
           <Sparkles className="h-6 w-6 text-primary" />
           {!collapsed && (
             <span className="font-semibold">AI成长伴侣</span>
@@ -76,7 +71,7 @@ export function Sidebar({ user }: SidebarProps) {
                 <p className="truncate text-sm font-medium">{user.name}</p>
                 <div className="mt-1">
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Lv.{user.level}</span>
+                    <span>Lv.{level}</span>
                     <span>{xpProgress}/{xpToNextLevel} XP</span>
                   </div>
                   <Progress value={(xpProgress / xpToNextLevel) * 100} className="mt-1 h-1.5" />
@@ -97,15 +92,23 @@ export function Sidebar({ user }: SidebarProps) {
               icon={item.icon}
               label={item.label}
               collapsed={collapsed}
-              isActive={
-                item.href === '/'
-                  ? pathname === '/'
-                  : pathname.startsWith(item.href)
-              }
+              isActive={pathname.startsWith(item.href)}
             />
           ))}
         </nav>
       </ScrollArea>
+
+      {/* Logout Button */}
+      <div className="border-t p-2">
+        <Button
+          variant="ghost"
+          className={cn('w-full justify-start', collapsed && 'justify-center px-0')}
+          onClick={logout}
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          {!collapsed && <span>退出登录</span>}
+        </Button>
+      </div>
 
       {/* Collapse Button */}
       <Button

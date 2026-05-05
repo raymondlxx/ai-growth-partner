@@ -6,8 +6,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useAuth } from '@/contexts/AuthContext'
 
 const loginSchema = z.object({
   email: z.string().email('请输入有效的邮箱地址'),
@@ -28,14 +29,13 @@ type LoginFormData = z.infer<typeof loginSchema>
 type RegisterFormData = z.infer<typeof registerSchema>
 
 interface AuthFormsProps {
-  onLogin?: (data: LoginFormData) => Promise<{ success: boolean; message: string }>
-  onRegister?: (data: RegisterFormData) => Promise<{ success: boolean; message: string }>
-  isLoading?: boolean
+  onSuccess?: () => void
 }
 
-export function AuthForms({ onLogin, onRegister, isLoading }: AuthFormsProps) {
+export function AuthForms({ onSuccess }: AuthFormsProps) {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login')
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const { login, register: registerUser, isLoading } = useAuth()
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -48,19 +48,27 @@ export function AuthForms({ onLogin, onRegister, isLoading }: AuthFormsProps) {
   })
 
   const handleLogin = async (data: LoginFormData) => {
-    if (!onLogin) return
     setMessage(null)
-    const result = await onLogin(data)
-    if (!result.success) {
+    const result = await login(data)
+    if (result.success) {
+      setMessage({ type: 'success', text: '登录成功' })
+      setTimeout(() => onSuccess?.(), 500)
+    } else {
       setMessage({ type: 'error', text: result.message })
     }
   }
 
   const handleRegister = async (data: RegisterFormData) => {
-    if (!onRegister) return
     setMessage(null)
-    const result = await onRegister(data)
-    if (!result.success) {
+    const result = await registerUser({
+      email: data.email,
+      password: data.password,
+      name: data.name,
+    })
+    if (result.success) {
+      setMessage({ type: 'success', text: '注册成功' })
+      setTimeout(() => onSuccess?.(), 500)
+    } else {
       setMessage({ type: 'error', text: result.message })
     }
   }

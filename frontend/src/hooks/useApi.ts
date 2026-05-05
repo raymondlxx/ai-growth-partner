@@ -2,7 +2,6 @@
 
 import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query'
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
-import { ApiResponse } from '@/types'
 
 export function useApi<T>(
   queryKey: QueryKey,
@@ -12,11 +11,14 @@ export function useApi<T>(
     enabled?: boolean
   }
 ) {
-  return useQuery<ApiResponse<T>>({
+  return useQuery<T, Error>({
     queryKey: [queryKey, params],
     queryFn: async () => {
       const response = await apiGet<T>(url, params)
-      return response.data
+      if (response.data.code === 200 || response.data.code === 0) {
+        return response.data.data as T
+      }
+      throw new Error(response.data.message || 'API Error')
     },
     enabled: options?.enabled ?? true,
   })
@@ -30,19 +32,27 @@ export function useApiMutation<T, D = unknown>(
   const queryClient = useQueryClient()
 
   const mutationFn = async (data?: D) => {
+    let response
     switch (method) {
       case 'post':
-        return apiPost<T>(url, data)
+        response = await apiPost<T>(url, data)
+        break
       case 'put':
-        return apiPut<T>(url, data)
+        response = await apiPut<T>(url, data)
+        break
       case 'delete':
-        return apiDelete<T>(url)
+        response = await apiDelete<T>(url)
+        break
       default:
-        return apiPost<T>(url, data)
+        response = await apiPost<T>(url, data)
     }
+    if (response.data.code === 200 || response.data.code === 0) {
+      return response.data.data as T
+    }
+    throw new Error(response.data.message || 'API Error')
   }
 
-  return useMutation<ApiResponse<T>, Error, D>({
+  return useMutation<T, Error, D>({
     mutationFn,
     onSuccess: () => {
       if (queryKeyToInvalidate) {
