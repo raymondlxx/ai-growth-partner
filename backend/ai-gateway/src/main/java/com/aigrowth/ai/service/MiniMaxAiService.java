@@ -135,8 +135,32 @@ public class MiniMaxAiService {
         log.debug("MiniMax response body: {}", response.body());
 
         if (response.statusCode() != 200) {
+            String body = response.body();
+            // Check for MiniMax error codes
+            if (body.contains("\"status_code\":")) {
+                int codeIdx = body.indexOf("\"status_code\"");
+                int colon = body.indexOf(":", codeIdx);
+                int commaOrBrace = body.indexOf(",", colon);
+                int endIdx = commaOrBrace != -1 ? commaOrBrace : body.indexOf("}", colon);
+                String codeStr = body.substring(colon + 1, endIdx).trim();
+                try {
+                    int statusCode = Integer.parseInt(codeStr);
+                    // Extract status_msg if present
+                    String statusMsg = "";
+                    int msgIdx = body.indexOf("\"status_msg\"");
+                    if (msgIdx != -1) {
+                        int msgColon = body.indexOf(":", msgIdx);
+                        int msgQuote = body.indexOf("\"", msgColon + 1);
+                        int msgEndQuote = body.indexOf("\"", msgQuote + 1);
+                        if (msgQuote != -1 && msgEndQuote != -1) {
+                            statusMsg = body.substring(msgQuote + 1, msgEndQuote);
+                        }
+                    }
+                    throw new RuntimeException("MiniMax API error " + statusCode + " (login fail = invalid/expired key): " + statusMsg);
+                } catch (NumberFormatException ignored) {}
+            }
             throw new RuntimeException("MiniMax API error: status=" + response.statusCode() +
-                ", body=" + response.body());
+                ", body=" + body);
         }
 
         return parseMiniMaxResponse(response.body());
