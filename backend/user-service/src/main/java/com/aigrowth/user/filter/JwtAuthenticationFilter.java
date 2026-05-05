@@ -54,6 +54,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         if (!jwtUtil.validateToken(token)) {
+            log.warn("JWT validation failed for token: {}", token.substring(0, Math.min(20, token.length())));
             sendUnauthorizedResponse(response, "Invalid or expired token");
             return;
         }
@@ -62,9 +63,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String storedToken = redisTemplate.opsForValue().get(TOKEN_PREFIX + userId);
 
         if (storedToken == null || !storedToken.equals(token)) {
+            log.warn("Token mismatch or not found in Redis for userId={}", userId);
             sendUnauthorizedResponse(response, "Token has been invalidated");
             return;
         }
+
+        request.setAttribute("userId", userId);
+        request.setAttribute("token", token);
 
         User user = userService.findById(userId);
         if (user == null) {

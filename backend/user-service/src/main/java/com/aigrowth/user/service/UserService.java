@@ -27,15 +27,26 @@ public class UserService {
     private final JwtUtil jwtUtil;
     private final StringRedisTemplate redisTemplate;
 
-    private static final String TOKEN_PREFIX = "user:token:";
+    private static final String TOKEN_PREFIX = "***";
     private static final Duration TOKEN_TTL = Duration.ofDays(7);
 
     public LoginResponse register(RegisterRequest request) {
-        // Check if username already exists
-        LambdaQueryWrapper<User> usernameQuery = new LambdaQueryWrapper<>();
-        usernameQuery.eq(User::getUsername, request.getUsername());
-        if (userRepository.selectCount(usernameQuery) > 0) {
-            throw BizException.conflict("Username already exists");
+        // Auto-generate username if not provided
+        String username = request.getUsername();
+        if (username == null || username.isBlank()) {
+            if (request.getEmail() != null && request.getEmail().contains("@")) {
+                username = request.getEmail().split("@")[0];
+            } else if (request.getNickname() != null && !request.getNickname().isBlank()) {
+                username = request.getNickname().replaceAll("[^a-zA-Z0-9_]", "_");
+            } else {
+                throw BizException.badRequest("Username cannot be blank");
+            }
+        }
+        // Ensure uniqueness by appending random suffix if needed
+        String baseUsername = username;
+        int suffix = 1;
+        while (userRepository.selectCount(new LambdaQueryWrapper<User>().eq(User::getUsername, username)) > 0) {
+            username = baseUsername + suffix++;
         }
 
         // Check if email already exists
@@ -47,10 +58,10 @@ public class UserService {
 
         // Create user
         User user = new User();
-        user.setUsername(request.getUsername());
+        user.setUsername(username);
         user.setEmail(request.getEmail());
         user.setPassword(hashPassword(request.getPassword()));
-        user.setNickname(request.getNickname() != null ? request.getNickname() : request.getUsername());
+        user.setNickname(request.getNickname() != null ? request.getNickname() : username);
         user.setStatus(1);
         user.setLevel(1);
         user.setXp(0L);
@@ -111,7 +122,7 @@ public class UserService {
     }
 
     public void logout(Long userId) {
-        redisTemplate.delete(TOKEN_PREFIX + userId);
+        redisTemplate.delete("user:token:" + userId);
         log.info("User logged out: id={}", userId);
     }
 
@@ -120,7 +131,7 @@ public class UserService {
     }
 
     private void saveToken(Long userId, String token) {
-        redisTemplate.opsForValue().set(TOKEN_PREFIX + userId, token, TOKEN_TTL);
+        redisTemplate.opsForValue().set("user:token:" + userId, token, TOKEN_TTL);
     }
 
     private String hashPassword(String password) {
