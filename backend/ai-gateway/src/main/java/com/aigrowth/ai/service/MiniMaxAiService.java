@@ -2,6 +2,8 @@ package com.aigrowth.ai.service;
 
 import com.aigrowth.ai.engine.EmotionEngine;
 import com.aigrowth.ai.service.PromptTemplateService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,7 +22,7 @@ import java.util.*;
  *
  * MiniMax API docs: https://www.minimaxi.com/document/Guides/Getting%20Started
  * API Base: https://api.minimax.chat/v1
- * Model: minimax-01-16k (128K context, fast)
+ * Model: MiniMax-M2.7 (supports 128K context)
  */
 @Service
 public class MiniMaxAiService {
@@ -32,6 +34,7 @@ public class MiniMaxAiService {
 
     private final EmotionEngine emotionEngine;
     private final PromptTemplateService promptTemplateService;
+    private final ObjectMapper objectMapper;
 
     @Value("${ai.minimax.api-key:}")
     private String apiKey;
@@ -53,6 +56,7 @@ public class MiniMaxAiService {
     public MiniMaxAiService(EmotionEngine emotionEngine, PromptTemplateService promptTemplateService) {
         this.emotionEngine = emotionEngine;
         this.promptTemplateService = promptTemplateService;
+        this.objectMapper = new ObjectMapper();
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(30))
             .build();
@@ -68,7 +72,7 @@ public class MiniMaxAiService {
         try {
             String responseText = callMiniMaxApi(userMessage, history, emotion, emotionHint);
 
-            Map<String, Object> result = new HashMap<>();
+            Map<String, Object> result = new LinkedHashMap<>();
             result.put("response", responseText);
             result.put("emotion", emotion.name());
             result.put("emotionHint", emotionHint);
@@ -76,13 +80,14 @@ public class MiniMaxAiService {
             return result;
 
         } catch (Exception e) {
-            log.error("MiniMax API call failed: {}", e.getMessage(), e);
+            log.error("MiniMax API call failed: {}", e.getMessage());
             return buildFallbackResult(emotion, emotionHint, e.getMessage());
         }
     }
 
     private String callMiniMaxApi(String userMessage, List<Map<String, String>> history,
-                                  EmotionEngine.Emotion emotion, String emotionHint) throws IOException, InterruptedException {
+                                  EmotionEngine.Emotion emotion, String emotionHint)
+        throws IOException, InterruptedException {
 
         // Build messages array
         List<Map<String, Object>> messages = new ArrayList<>();
@@ -106,20 +111,16 @@ public class MiniMaxAiService {
         // Current user message
         messages.add(Map.of("role", "user", "content", userMessage));
 
-        // Build request body (MiniMax uses OpenAI-compatible format)
+        // Build request body
         Map<String, Object> requestBody = new LinkedHashMap<>();
         requestBody.put("model", model);
         requestBody.put("messages", messages);
         requestBody.put("temperature", temperature);
         requestBody.put("max_tokens", 1024);
 
-        String jsonBody = toJson(requestBody);
-
+        String jsonBody = objectMapper.writeValueAsString(requestBody);
         log.debug("MiniMax request body: {}", jsonBody);
 
-        // Build request with MiniMax auth header
-        // MiniMax uses: Authorization: Bearer {api_key}
-        // Header also needs: minimax-group-id: {group_id}
         HttpRequest request = HttpRequest.newBuilder()
             .uri(URI.create(CHAT_COMPLETIONS_URL))
             .header("Content-Type", "application/json")
@@ -132,131 +133,55 @@ public class MiniMaxAiService {
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         log.debug("MiniMax response status: {}", response.statusCode());
-        log.debug("MiniMax response body: {}", response.body());
 
         if (response.statusCode() != 200) {
             String body = response.body();
-            // Check for MiniMax error codes
-            if (body.contains("\"status_code\":")) {
-                int codeIdx = body.indexOf("\"status_code\"");
-                int colon = body.indexOf(":", codeIdx);
-                int commaOrBrace = body.indexOf(",", colon);
-                int endIdx = commaOrBrace != -1 ? commaOrBrace : body.indexOf("}", colon);
-                String codeStr = body.substring(colon + 1, endIdx).trim();
-                try {
-                    int statusCode = Integer.parseInt(codeStr);
-                    // Extract status_msg if present
-                    String statusMsg = "";
-                    int msgIdx = body.indexOf("\"status_msg\"");
-                    if (msgIdx != -1) {
-                        int msgColon = body.indexOf(":", msgIdx);
-                        int msgQuote = body.indexOf("\"", msgColon + 1);
-                        int msgEndQuote = body.indexOf("\"", msgQuote + 1);
-                        if (msgQuote != -1 && msgEndQuote != -1) {
-                            statusMsg = body.substring(msgQuote + 1, msgEndQuote);
-                        }
+            // Try to extract MiniMax error code and message
+            try {
+                JsonNode respNode = objectMapper.readTree(body);
+                JsonNode baseResp = respNode.path("base_resp");
+                if (!baseResp.isMissingNode()) {
+                    int statusCode = baseResp.path("status_code").asInt(-1);
+                    String statusMsg = baseResp.path("status_msg").asText("");
+                    if (statusCode != 0) {
+                        throw new RuntimeException("MiniMax API error " + statusCode +
+                            " (1004=invalid key, 1007=rate limit): " + statusMsg);
                     }
-                    throw new RuntimeException("MiniMax API error " + statusCode + " (login fail = invalid/expired key): " + statusMsg);
-                } catch (NumberFormatException ignored) {}
-            }
-            throw new RuntimeException("MiniMax API error: status=" + response.statusCode() +
-                ", body=" + body);
+                }
+            } catch (RuntimeException e) {
+                throw e;
+            } catch (Exception ignored) {}
+            throw new RuntimeException("MiniMax API error: HTTP " + response.statusCode() +
+                ", body: " + body);
         }
 
         return parseMiniMaxResponse(response.body());
     }
 
-    private String parseMiniMaxResponse(String json) {
-        // MiniMax response format:
-        // {"id":"...","choices":[{"finish_reason":"stop","index":0,"message":{"content":"...","role":"assistant"}}]}
-        try {
-            // Find the "message" object within choices
-            int choicesIdx = json.indexOf("\"choices\"");
-            if (choicesIdx == -1) throw new RuntimeException("No 'choices' in response: " + json);
+    private String parseMiniMaxResponse(String json) throws IOException {
+        // MiniMax response: {"choices":[{"finish_reason":"stop","index":0,
+        //   "message":{"content":"...","role":"assistant","name":"MiniMax AI",
+        //              "reasoning_content":"..."}}]}
+        // We want message.content (NOT reasoning_content)
+        JsonNode root = objectMapper.readTree(json);
 
-            int msgKeyIdx = json.indexOf("\"message\"", choicesIdx);
-            if (msgKeyIdx == -1) throw new RuntimeException("No 'message' in choices: " + json);
-
-            int msgBraceIdx = json.indexOf("{", msgKeyIdx);
-            if (msgBraceIdx == -1) throw new RuntimeException("No '{' after 'message': " + json);
-
-            // Find "content" key within the message object
-            int contentIdx = json.indexOf("\"content\"", msgBraceIdx);
-            if (contentIdx == -1) throw new RuntimeException("No 'content' in message: " + json);
-
-            int colonIdx = json.indexOf(":", contentIdx);
-            int startQuote = json.indexOf("\"", colonIdx + 1);
-            if (startQuote == -1) throw new RuntimeException("No opening quote for content value");
-
-            int endQuote = startQuote + 1;
-            StringBuilder content = new StringBuilder();
-            while (endQuote < json.length()) {
-                char c = json.charAt(endQuote);
-                if (c == '\\') {
-                    char next = json.charAt(endQuote + 1);
-                    if (next == 'n') {
-                        content.append('\n');
-                    } else if (next == 't') {
-                        content.append('\t');
-                    } else if (next == '"') {
-                        content.append('"');
-                    } else if (next == '\\') {
-                        content.append('\\');
-                    } else {
-                        content.append(next);
-                    }
-                    endQuote += 2;
-                    continue;
-                }
-                if (c == '"') break;
-                content.append(c);
-                endQuote++;
-            }
-
-            return content.toString();
-
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Failed to parse MiniMax response: {}", e.getMessage());
-            throw new RuntimeException("Failed to parse MiniMax response", e);
+        JsonNode choices = root.path("choices");
+        if (choices.isMissingNode() || !choices.isArray() || choices.isEmpty()) {
+            throw new RuntimeException("No choices in MiniMax response");
         }
-    }
 
-    private String toJson(Map<String, Object> map) {
-        StringBuilder sb = new StringBuilder("{");
-        boolean first = true;
-        for (Map.Entry<String, Object> e : map.entrySet()) {
-            if (!first) sb.append(",");
-            first = false;
-            sb.append("\"").append(e.getKey()).append("\":");
-            Object v = e.getValue();
-            if (v instanceof List) {
-                sb.append("[");
-                boolean firstItem = true;
-                for (Object item : (List<?>) v) {
-                    if (!firstItem) sb.append(",");
-                    firstItem = false;
-                    if (item instanceof Map) {
-                        sb.append(toJson((Map<String, Object>) item));
-                    } else {
-                        sb.append("\"").append(String.valueOf(item).replace("\\", "\\\\")
-                            .replace("\"", "\\\"")
-                            .replace("\n", "\\n")).append("\"");
-                    }
-                }
-                sb.append("]");
-            } else if (v instanceof Number) {
-                // Numbers (Integer, Double, etc.) must NOT be quoted
-                sb.append(String.valueOf(v));
-            } else {
-                sb.append("\"").append(String.valueOf(v).replace("\\", "\\\\")
-                    .replace("\"", "\\\"")
-                    .replace("\n", "\\n")).append("\"");
-            }
+        JsonNode firstChoice = choices.get(0);
+        JsonNode message = firstChoice.path("message");
+        if (message.isMissingNode()) {
+            throw new RuntimeException("No 'message' in choices[0]");
         }
-        sb.append("}");
-        return sb.toString();
+
+        String content = message.path("content").asText(null);
+        if (content == null || content.isBlank()) {
+            throw new RuntimeException("No 'content' in message object");
+        }
+
+        return content;
     }
 
     private Map<String, Object> buildFallbackResult(EmotionEngine.Emotion emotion,
@@ -270,7 +195,7 @@ public class MiniMaxAiService {
             default:       response = "AI导师暂时不可用（"+error+"），请稍后再试。感谢你的耐心。";
         }
 
-        Map<String, Object> result = new HashMap<>();
+        Map<String, Object> result = new LinkedHashMap<>();
         result.put("response", response);
         result.put("emotion", emotion.name());
         result.put("emotionHint", emotionHint);
@@ -292,7 +217,7 @@ public class MiniMaxAiService {
             String responseText = callMiniMaxApi(prompt, history,
                 EmotionEngine.Emotion.NEUTRAL, "");
 
-            Map<String, Object> result = new HashMap<>();
+            Map<String, Object> result = new LinkedHashMap<>();
             result.put("recommendation", responseText);
             result.put("goalArea", goalArea);
             result.put("source", "minimax:" + model);
@@ -301,7 +226,7 @@ public class MiniMaxAiService {
 
         } catch (Exception e) {
             log.error("MiniMax path recommendation failed: {}", e.getMessage());
-            Map<String, Object> result = new HashMap<>();
+            Map<String, Object> result = new LinkedHashMap<>();
             result.put("recommendation", "Path recommendation service temporarily unavailable.");
             result.put("goalArea", goalArea);
             result.put("source", "fallback");
