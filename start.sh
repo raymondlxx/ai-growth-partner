@@ -17,7 +17,6 @@ SERVICES=(
   "task-service:8081"
   "path-service:8082"
   "content-service:8083"
-  "social-service:8083"
   "ai-gateway:8084"
 )
 
